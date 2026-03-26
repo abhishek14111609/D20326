@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        if (!Schema::hasColumn('membership_plans', 'duration_days')) {
+            Schema::table('membership_plans', function (Blueprint $table) {
+                $table->integer('duration_days')->default(30)->after('price');
+            });
+        }
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        if (Schema::hasColumn('membership_plans', 'duration_days')) {
+            Schema::table('membership_plans', function (Blueprint $table) {
+                $table->dropColumn('duration_days');
+            });
+        }
+    }
+};
