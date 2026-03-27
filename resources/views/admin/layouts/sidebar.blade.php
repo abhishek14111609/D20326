@@ -61,11 +61,16 @@
             <div>Competitions</div>
           </a>
         </li>
+		@php
+			$defaultCompetition = \App\Models\Competition::first();
+		@endphp
+		@if($defaultCompetition)
 		<li class="menu-item {{ request()->routeIs('admin.competitions.quizzes.*') ? 'active' : '' }}">
-			<a href="{{ route('admin.competitions.quizzes.index', ['competition' => 1]) }}" class="menu-link">
+			<a href="{{ route('admin.competitions.quizzes.index', ['competition' => $defaultCompetition->id]) }}" class="menu-link">
 				<div>Quiz Management</div>
 			</a>
 		</li>
+		@endif
       </ul>
     </li>
 	
