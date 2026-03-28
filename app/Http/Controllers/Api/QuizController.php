@@ -257,7 +257,14 @@ class QuizController extends Controller
     public function submitAllAnswers(Request $request, $quizId)
     {
         $user = Auth::user();
-        $quiz = Quiz::findOrFail($quizId);
+        $quiz = Quiz::find($quizId);
+
+        if (!$quiz) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Quiz not found with ID: ' . $quizId
+            ], 404);
+        }
 
         $participant = QuizParticipant::where('quiz_id', $quizId)
             ->where('user_id', $user->id)
@@ -265,7 +272,14 @@ class QuizController extends Controller
                 $query->where('status', 'started')
                       ->orWhere('status', 'completed');
             })
-            ->firstOrFail();
+            ->first();
+
+        if (!$participant) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Active quiz session not found for this user and quiz'
+            ], 404);
+        }
 
         // ✅ normalize input (string OR array from Postman)
         $questionIds = array_map(
