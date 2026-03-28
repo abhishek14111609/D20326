@@ -65,15 +65,15 @@ class CompetitionController extends Controller
                 'status' => 'success',
                 'data' => CompetitionResource::collection($competitions),
                 'pagination' => [
-                'total' => $competitions->total(),
-                'count' => $competitions->count(),
-                'total_pages' => ceil($competitions->total() / $perPage),
-                'current_page' => $competitions->currentPage(),
-                'from' => $competitions->firstItem() ?? 0,
-                'last_page' => $competitions->lastPage(),
-                'per_page' => $competitions->perPage(),
-                'to' => $competitions->lastItem() ?? 0,
-            ]
+                    'total' => $competitions->total(),
+                    'count' => $competitions->count(),
+                    'total_pages' => ceil($competitions->total() / $perPage),
+                    'current_page' => $competitions->currentPage(),
+                    'from' => $competitions->firstItem() ?? 0,
+                    'last_page' => $competitions->lastPage(),
+                    'per_page' => $competitions->perPage(),
+                    'to' => $competitions->lastItem() ?? 0,
+                ]
             ]);
 
         } catch (\Exception $e) {
@@ -213,7 +213,6 @@ class CompetitionController extends Controller
                 'pagination' => [
                     'total' => $competitions->total(),
                     'count' => $competitions->count(),
-                    'per_page' => $competitions->perPage(),
                     'current_page' => $competitions->currentPage(),
                     'total_pages' => $competitions->lastPage(),
                     'from' => $competitions->firstItem() ?? 0,
@@ -269,11 +268,15 @@ class CompetitionController extends Controller
             // Check if registration is open
             $now = now();
 			
-			$quizzes = Quiz::where('competition_id', $competition->id)
-            ->where('is_active', 1)
-            ->orWhere('start_time', '<=', $now)
-            ->orWhere('end_time', '>=', $now)
-            ->first();
+            $quizzes = Quiz::where('competition_id', $competition->id)
+                ->where(function($query) use ($now) {
+                    $query->where('is_active', 1)
+                        ->orWhere(function($sub) use ($now) {
+                            $sub->where('start_time', '<=', $now)
+                                ->where('end_time', '>=', $now);
+                        });
+                })
+                ->first();
 			
 			if (!$quizzes) {
 				return response()->json([
@@ -460,7 +463,6 @@ class CompetitionController extends Controller
                     'pagination' => [
                         'total' => $participants->total(),
                         'count' => $participants->count(),
-                        'per_page' => $participants->perPage(),
                         'current_page' => $participants->currentPage(),
                         'total_pages' => $participants->lastPage(),
                         'from' => $participants->firstItem() ?? 0,
@@ -626,7 +628,6 @@ class CompetitionController extends Controller
                     'pagination' => [
                         'total' => $participants->total(),
                         'count' => $participants->count(),
-                        'per_page' => $participants->perPage(),
                         'current_page' => $participants->currentPage(),
                         'total_pages' => $participants->lastPage(),
                         'from' => $participants->firstItem() ?? 0,

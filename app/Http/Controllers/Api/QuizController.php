@@ -261,8 +261,10 @@ class QuizController extends Controller
 
         $participant = QuizParticipant::where('quiz_id', $quizId)
             ->where('user_id', $user->id)
-            ->where('status', 'started')
-            ->orWhere('status', 'completed')
+            ->where(function($query) {
+                $query->where('status', 'started')
+                      ->orWhere('status', 'completed');
+            })
             ->firstOrFail();
 
         // ✅ normalize input (string OR array from Postman)
