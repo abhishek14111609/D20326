@@ -257,12 +257,19 @@ class QuizController extends Controller
     public function submitAllAnswers(Request $request, $quizId)
     {
         $user = Auth::user();
-        $quiz = Quiz::find($quizId);
+        $quiz = Quiz::withTrashed()->find($quizId);
 
         if (!$quiz) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Quiz not found with ID: ' . $quizId
+            ], 404);
+        }
+
+        if ($quiz->deleted_at !== null) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Quiz ID ' . $quizId . ' exists but has been deleted (soft-deleted). Please restore it from the admin panel.'
             ], 404);
         }
 
