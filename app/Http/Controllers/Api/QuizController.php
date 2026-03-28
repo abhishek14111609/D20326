@@ -20,58 +20,58 @@ class QuizController extends Controller
     /* =====================================================
      | JOIN COMPETITION & AUTO START QUIZ
      ===================================================== */
-	
-public function index(Request $request)
-{
-    $now = now();
 
-    $perPage = $request->input('per_page', 10);
-    $page = $request->input('page', 1);
+    public function index(Request $request)
+    {
+        $now = now();
 
-    if (!$request->competitionId) {
+        $perPage = $request->input('per_page', 10);
+        $page = $request->input('page', 1);
+
+        if (!$request->competitionId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'competition_id is required'
+            ], 400);
+        }
+
+        $quizzes = Quiz::where('competition_id', $request->competitionId)
+            ->where('is_active', 1)
+            ->orderBy('start_time', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $data = $quizzes->getCollection()->map(function ($quiz) use ($now) {
+            return [
+                'id' => $quiz->id,
+                'title' => $quiz->title,
+                'description' => $quiz->description,
+                'competition_id' => $quiz->competition_id,
+                'start_time' => $quiz->start_time ?? '',
+                'end_time' => $quiz->end_time ?? '',
+                'duration_minutes' => $quiz->duration_minutes ?? '',
+                'total_questions' => $quiz->questions()->count(),
+                'max_score' => $quiz->questions()->sum('points'),
+                'is_active' => $quiz->isActive(),
+            ];
+        });
+
         return response()->json([
-            'status' => 'error',
-            'message' => 'competition_id is required'
-        ], 400);
+            'status' => 'success',
+            'data' => $data,
+            'pagination' => [
+                'total' => $quizzes->total(),
+                'per_page' => $quizzes->perPage(),
+                'current_page' => $quizzes->currentPage(),
+                'last_page' => $quizzes->lastPage(),
+            ]
+        ]);
     }
 
-    $quizzes = Quiz::where('competition_id', $request->competitionId)
-        ->where('is_active', 1)
-        ->orderBy('start_time', 'desc')
-        ->paginate($perPage, ['*'], 'page', $page);
 
-    $data = $quizzes->getCollection()->map(function ($quiz) use ($now) {
-        return [
-            'id' => $quiz->id,
-            'title' => $quiz->title,
-            'description' => $quiz->description,
-            'competition_id' => $quiz->competition_id,
-            'start_time' => $quiz->start_time ?? '',
-            'end_time' => $quiz->end_time ?? '',
-            'duration_minutes' => $quiz->duration_minutes ?? '',
-            'total_questions' => $quiz->questions()->count(),
-            'max_score' => $quiz->questions()->sum('points'),
-            'is_active' => $quiz->isActive(),
-        ];
-    });
-
-    return response()->json([
-        'status' => 'success',
-        'data' => $data,
-        'pagination' => [
-            'total' => $quizzes->total(),
-            'per_page' => $quizzes->perPage(),
-            'current_page' => $quizzes->currentPage(),
-            'last_page' => $quizzes->lastPage(),
-        ]
-    ]);
-}
-
-	
     public function joinCompetition(Request $request, $competitionId)
     {
         $user = Auth::user();
-        $now  = now();
+        $now = now();
 
         $competition = Competition::findOrFail($competitionId);
 
@@ -166,32 +166,32 @@ public function index(Request $request)
     /* =====================================================
      | GET QUIZ STATE (REAL TIME)
      ===================================================== */
-public function getQuizState($quizId)
-{
-    $user = Auth::user();
+    public function getQuizState($quizId)
+    {
+        $user = Auth::user();
 
-    $quiz = Quiz::findOrFail($quizId);
+        $quiz = Quiz::findOrFail($quizId);
 
-    $participant = QuizParticipant::where('quiz_id', $quizId)
-        ->where('user_id', $user->id)
-        ->first();
+        $participant = QuizParticipant::where('quiz_id', $quizId)
+            ->where('user_id', $user->id)
+            ->first();
 
-    if (!$participant) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'User has not joined this quiz yet'
-        ], 404);
+        if (!$participant) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User has not joined this quiz yet'
+            ], 404);
+        }
+
+        return $this->quizState($quiz, $participant);
     }
-
-    return $this->quizState($quiz, $participant);
-}
 
 
     protected function quizState(Quiz $quiz, QuizParticipant $participant)
     {
         $elapsed = now()->diffInSeconds($participant->started_at);
-        $limit   = $quiz->duration_minutes * 60;
-        $remain  = max(0, $limit - $elapsed);
+        $limit = $quiz->duration_minutes * 60;
+        $remain = max(0, $limit - $elapsed);
 
         if ($elapsed >= $limit && $participant->status === 'started') {
             return $this->completeQuizInternal($quiz, $participant);
@@ -229,26 +229,26 @@ public function getQuizState($quizId)
             ] : null
         ]);
     }
-	
-	protected function formatDuration($seconds)
-	{
-		if ($seconds <= 0) {
-			return '0 minutes';
-		}
 
-		$hours = floor($seconds / 3600);
-		$minutes = floor(($seconds % 3600) / 60);
+    protected function formatDuration($seconds)
+    {
+        if ($seconds <= 0) {
+            return '0 minutes';
+        }
 
-		if ($hours > 0 && $minutes > 0) {
-			return "{$hours} hour" . ($hours > 1 ? 's' : '') . " {$minutes} minute" . ($minutes > 1 ? 's' : '');
-		}
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
 
-		if ($hours > 0) {
-			return "{$hours} hour" . ($hours > 1 ? 's' : '');
-		}
+        if ($hours > 0 && $minutes > 0) {
+            return "{$hours} hour" . ($hours > 1 ? 's' : '') . " {$minutes} minute" . ($minutes > 1 ? 's' : '');
+        }
 
-		return "{$minutes} minute" . ($minutes > 1 ? 's' : '');
-	}
+        if ($hours > 0) {
+            return "{$hours} hour" . ($hours > 1 ? 's' : '');
+        }
+
+        return "{$minutes} minute" . ($minutes > 1 ? 's' : '');
+    }
 
 
     /* =====================================================
@@ -280,14 +280,7 @@ public function getQuizState($quizId)
 
         $submittedAnswers = [];
 
-        DB::transaction(function () use (
-            $questionIds,
-            $answers,
-            $times,
-            $participant,
-            $quiz,
-            &$submittedAnswers
-        ) {
+        DB::transaction(function () use ($questionIds, $answers, $times, $participant, $quiz, &$submittedAnswers) {
             foreach ($questionIds as $index => $questionId) {
 
                 // already answered skip
@@ -305,37 +298,37 @@ public function getQuizState($quizId)
                 }
 
                 $userAnswer = $answers[$index] ?? null;
-                $timeTaken  = $times[$index] ?? 0;
+                $timeTaken = $times[$index] ?? 0;
 
                 // sacho answer
                 $correctAnswerIndexes = $question->correct_answer; // [0]
-$options = $question->options; // ["hfggf","fgfg",...]
+                $options = $question->options; // ["hfggf","fgfg",...]
 
-$correctAnswerText = [];
-if (is_array($correctAnswerIndexes) && is_array($options)) {
-    foreach ($correctAnswerIndexes as $idx) {
-        if (isset($options[$idx])) {
-            $correctAnswerText[] = $options[$idx];
-        }
-    }
-}
+                $correctAnswerText = [];
+                if (is_array($correctAnswerIndexes) && is_array($options)) {
+                    foreach ($correctAnswerIndexes as $idx) {
+                        if (isset($options[$idx])) {
+                            $correctAnswerText[] = $options[$idx];
+                        }
+                    }
+                }
 
-// ✅ compare user answer with correctAnswerText
-$isCorrect = false;
+                // ✅ compare user answer with correctAnswerText
+                $isCorrect = false;
 
-if ($userAnswer !== null) {
-    if (count($correctAnswerText) === 1) {
-        // single correct
-        $isCorrect = ($userAnswer == $correctAnswerText[0]);
-    } else {
-        // multi correct (userAnswer comma separated)
-        $userAnswers = is_array($userAnswer) ? $userAnswer : explode(',', $userAnswer);
-        sort($userAnswers);
-        $tmp = $correctAnswerText;
-        sort($tmp);
-        $isCorrect = ($userAnswers == $tmp);
-    }
-}
+                if ($userAnswer !== null) {
+                    if (count($correctAnswerText) === 1) {
+                        // single correct
+                        $isCorrect = ($userAnswer == $correctAnswerText[0]);
+                    } else {
+                        // multi correct (userAnswer comma separated)
+                        $userAnswers = is_array($userAnswer) ? $userAnswer : explode(',', $userAnswer);
+                        sort($userAnswers);
+                        $tmp = $correctAnswerText;
+                        sort($tmp);
+                        $isCorrect = ($userAnswers == $tmp);
+                    }
+                }
 
 
                 //$isCorrect = $question->isAnswerCorrect([$userAnswer]);
@@ -355,12 +348,12 @@ if ($userAnswer !== null) {
                 }
 
                 // response mate
-               $submittedAnswers[] = [
-					'question_id'    => $questionId,
-					'user_answer'    => $userAnswer,
-					'correct_answer' => $correctAnswerText, // 🔥 TEXT now
-					'is_correct'     => $isCorrect
-				];
+                $submittedAnswers[] = [
+                    'question_id' => $questionId,
+                    'user_answer' => $userAnswer,
+                    'correct_answer' => $correctAnswerText, // 🔥 TEXT now
+                    'is_correct' => $isCorrect
+                ];
             }
         });
 
@@ -403,56 +396,56 @@ if ($userAnswer !== null) {
     // =========================
     // 🔹 Result builder
     // =========================
-private function buildResult(QuizParticipant $participant, Quiz $quiz): array
-{
-    $totalQuestions = $participant->total_questions;
-    $attempted = $participant->answers()->count();
-    $correct = $participant->answers()->where('is_correct', true)->count(); // dynamic
-    $wrong = $attempted - $correct;
-    $score = $participant->answers()->sum('points_earned'); // dynamic
-    $maxScore = $quiz->questions()->sum('points');
+    private function buildResult(QuizParticipant $participant, Quiz $quiz): array
+    {
+        $totalQuestions = $participant->total_questions;
+        $attempted = $participant->answers()->count();
+        $correct = $participant->answers()->where('is_correct', true)->count(); // dynamic
+        $wrong = $attempted - $correct;
+        $score = $participant->answers()->sum('points_earned'); // dynamic
+        $maxScore = $quiz->questions()->sum('points');
 
-    $percentage = $maxScore > 0
-        ? round(($score / $maxScore) * 100, 2)
-        : 0;
+        $percentage = $maxScore > 0
+            ? round(($score / $maxScore) * 100, 2)
+            : 0;
 
-    return [
-        'total_questions' => $totalQuestions,
-        'attempted' => $attempted,
-        'correct' => $correct,
-        'wrong' => $wrong,
-        'score' => $score,
-        'max_score' => $maxScore,
-        'percentage' => $percentage,
-        'status' => $participant->status,
-        'passed' => $percentage >= ($quiz->pass_percentage ?? 0),
-    ];
-}
+        return [
+            'total_questions' => $totalQuestions,
+            'attempted' => $attempted,
+            'correct' => $correct,
+            'wrong' => $wrong,
+            'score' => $score,
+            'max_score' => $maxScore,
+            'percentage' => $percentage,
+            'status' => $participant->status,
+            'passed' => $percentage >= ($quiz->pass_percentage ?? 0),
+        ];
+    }
 
 
-	
-	public function completeQuiz(Request $request, $quizId)
-	{
-		$user = Auth::user();
 
-		$quiz = Quiz::findOrFail($quizId);
+    public function completeQuiz(Request $request, $quizId)
+    {
+        $user = Auth::user();
 
-		$participant = QuizParticipant::where('quiz_id', $quizId)
-			->where('user_id', $user->id)
-			->where('status', 'started')
-			->first();
+        $quiz = Quiz::findOrFail($quizId);
 
-		if (!$participant) {
-			return response()->json([
-				'status' => 'error',
-				'message' => 'No active quiz session found'
-			], 404);
-		}
+        $participant = QuizParticipant::where('quiz_id', $quizId)
+            ->where('user_id', $user->id)
+            ->where('status', 'started')
+            ->first();
 
-		return $this->completeQuizInternal($quiz, $participant);
-	}
+        if (!$participant) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No active quiz session found'
+            ], 404);
+        }
 
-	
+        return $this->completeQuizInternal($quiz, $participant);
+    }
+
+
     /* =====================================================
      | COMPLETE QUIZ (SINGLE SOURCE)
      ===================================================== */
