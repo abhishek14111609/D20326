@@ -257,36 +257,13 @@ class QuizController extends Controller
     public function submitAllAnswers(Request $request, $quizId)
     {
         $user = Auth::user();
-        $quiz = Quiz::withTrashed()->find($quizId);
-
-        if (!$quiz) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Quiz not found with ID: ' . $quizId
-            ], 404);
-        }
-
-        if ($quiz->deleted_at !== null) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Quiz ID ' . $quizId . ' exists but has been deleted (soft-deleted). Please restore it from the admin panel.'
-            ], 404);
-        }
+        $quiz = Quiz::findOrFail($quizId);
 
         $participant = QuizParticipant::where('quiz_id', $quizId)
             ->where('user_id', $user->id)
-            ->where(function($query) {
-                $query->where('status', 'started')
-                      ->orWhere('status', 'completed');
-            })
-            ->first();
-
-        if (!$participant) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Active quiz session not found for this user and quiz'
-            ], 404);
-        }
+            ->where('status', 'started')
+            ->orWhere('status', 'completed')
+            ->firstOrFail();
 
         // ✅ normalize input (string OR array from Postman)
         $questionIds = array_map(
@@ -307,9 +284,11 @@ class QuizController extends Controller
             foreach ($questionIds as $index => $questionId) {
 
                 // already answered skip
-                if ($participant->answers()
-                    ->where('question_id', $questionId)
-                    ->exists()) {
+                if (
+                    $participant->answers()
+                        ->where('question_id', $questionId)
+                        ->exists()
+                ) {
                     continue;
                 }
 

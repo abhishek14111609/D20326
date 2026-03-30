@@ -25,7 +25,7 @@ class CompetitionController extends Controller
     {
         try {
             Log::info('Fetching all competitions');
-            
+
             // Check if the competitions table exists
             if (!Schema::hasTable('competitions')) {
                 Log::error('Competitions table does not exist');
@@ -38,22 +38,22 @@ class CompetitionController extends Controller
             // Get pagination parameters
             $perPage = $request->input('per_page', 15);
             $page = $request->input('page', 1);
-            
+
             // Base query
-             $query = Competition::query();
-            
+            $query = Competition::query();
+
             // Apply filters if provided
             if ($request->has('status')) {
                 $query->where('status', $request->input('status'));
             }
-            
+
             if ($request->has('type')) {
                 $query->where('competition_type', $request->input('type'));
             }
 
             // Get paginated results
             $competitions = $query->orderBy('start_date', 'desc')
-                                ->paginate($perPage, ['*'], 'page', $page);
+                ->paginate($perPage, ['*'], 'page', $page);
 
             // Manually load the participants count for each competition
             $competitions->getCollection()->transform(function ($competition) {
@@ -83,7 +83,7 @@ class CompetitionController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to fetch competitions. Please try again later.',
@@ -110,7 +110,7 @@ class CompetitionController extends Controller
     {
         try {
             Log::info('Fetching competition', ['competition_id' => $id]);
-            
+
             // Check if the competitions table exists
             if (!Schema::hasTable('competitions')) {
                 Log::error('Competitions table does not exist');
@@ -148,7 +148,7 @@ class CompetitionController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to fetch competition. Please try again later.',
@@ -182,7 +182,7 @@ class CompetitionController extends Controller
     {
         try {
             Log::info('Fetching active competitions');
-            
+
             // Check if the competitions table exists
             if (!Schema::hasTable('competitions')) {
                 Log::error('Competitions table does not exist');
@@ -195,9 +195,9 @@ class CompetitionController extends Controller
             // Get pagination parameters
             $perPage = $request->input('per_page', 10); // Default to 10 items per page
             $page = $request->input('page', 1);
-            
+
             $now = now();
-            
+
             // Get active competitions with pagination
             $competitions = Competition::where('start_date', '<=', $now)
                 ->where('end_date', '>=', $now)
@@ -213,6 +213,7 @@ class CompetitionController extends Controller
                 'pagination' => [
                     'total' => $competitions->total(),
                     'count' => $competitions->count(),
+                    'per_page' => $competitions->perPage(),
                     'current_page' => $competitions->currentPage(),
                     'total_pages' => $competitions->lastPage(),
                     'from' => $competitions->firstItem() ?? 0,
@@ -229,7 +230,7 @@ class CompetitionController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to fetch active competitions. Please try again later.',
@@ -247,7 +248,7 @@ class CompetitionController extends Controller
     public function join($id): JsonResponse
     {
         DB::beginTransaction();
-        
+
         try {
             $user = Auth::user();
             Log::info('User attempting to join competition', [
@@ -267,33 +268,29 @@ class CompetitionController extends Controller
 
             // Check if registration is open
             $now = now();
-			
+
             $quizzes = Quiz::where('competition_id', $competition->id)
-                ->where(function($query) use ($now) {
-                    $query->where('is_active', 1)
-                        ->orWhere(function($sub) use ($now) {
-                            $sub->where('start_time', '<=', $now)
-                                ->where('end_time', '>=', $now);
-                        });
-                })
+                ->where('is_active', 1)
+                ->orWhere('start_time', '<=', $now)
+                ->orWhere('end_time', '>=', $now)
                 ->first();
-			
-			if (!$quizzes) {
-				return response()->json([
-					'status' => 'error',
-					'message' => 'No active quiz available for this competition.'
-				], 404);
-			}
-			
-			$quiz = Quiz::with('questions')->findOrFail($quizzes->id);
-			
-			if (!$quiz) {
-				return response()->json([
-					'status' => 'error',
-					'message' => 'No active quiz available for this competition.'
-				], 404);
-			}
-			
+
+            if (!$quizzes) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No active quiz available for this competition.'
+                ], 404);
+            }
+
+            $quiz = Quiz::with('questions')->findOrFail($quizzes->id);
+
+            if (!$quiz) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No active quiz available for this competition.'
+                ], 404);
+            }
+
             if ($competition->registration_start && $now->lt($competition->registration_start)) {
                 return response()->json([
                     'status' => 'error',
@@ -320,7 +317,7 @@ class CompetitionController extends Controller
                     'score' => 0, // Reset score
                     'rank' => 0   // Reset rank
                 ]);
-                
+
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Successfully updated your competition entry!',
@@ -328,8 +325,8 @@ class CompetitionController extends Controller
                         //'competition_id' => $competition->id,
                         //'title' => $competition->title,
                         //'joined_at' => now()->toDateTimeString()
-						'competition' => $competition,
-						'quiz' => $quiz
+                        'competition' => $competition,
+                        'quiz' => $quiz
                     ]
                 ]);
             }
@@ -338,7 +335,7 @@ class CompetitionController extends Controller
             if ($competition->max_participants) {
                 $currentParticipants = CompetitionParticipant::where('competition_id', $id)
                     ->count();
-                
+
                 if ($currentParticipants >= $competition->max_participants) {
                     return response()->json([
                         'status' => 'error',
@@ -358,7 +355,7 @@ class CompetitionController extends Controller
             ]);
 
             $participant->save();
-            
+
             DB::commit();
 
             Log::info('User successfully joined competition', [
@@ -366,7 +363,7 @@ class CompetitionController extends Controller
                 'competition_id' => $id,
                 'participant_id' => $participant->id
             ]);
-			
+
 
             return response()->json([
                 'status' => 'success',
@@ -375,14 +372,14 @@ class CompetitionController extends Controller
                     //'competition_id' => $competition->id,
                     //'title' => $competition->title,
                     //'joined_at' => $now->toDateTimeString()
-					'competition' => $competition,
-					'quiz' => $quiz
+                    'competition' => $competition,
+                    'quiz' => $quiz
                 ]
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             Log::error('Failed to join competition: ' . $e->getMessage(), [
                 'user_id' => $user->id ?? null,
                 'competition_id' => $id,
@@ -391,7 +388,7 @@ class CompetitionController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to join competition. Please try again.',
@@ -409,16 +406,16 @@ class CompetitionController extends Controller
     public function leaderboard($id, Request $request): JsonResponse
     {
         try {
-           // Log::info('Fetching competition leaderboard', ['competition_id' => $id]);
-            
+            // Log::info('Fetching competition leaderboard', ['competition_id' => $id]);
+
             // Get pagination parameters
             $perPage = $request->input('per_page', 10); // Default to 10 items per page
             $page = $request->input('page', 1);
-            
+
             // Check if competition exists
             $competition = Competition::find($id);
             if (!$competition) {
-               // Log::warning('Competition not found', ['competition_id' => $id]);
+                // Log::warning('Competition not found', ['competition_id' => $id]);
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Competition not found.'
@@ -426,9 +423,11 @@ class CompetitionController extends Controller
             }
 
             // Get participants with user details, ordered by score (descending) and created_at (ascending)
-            $participants = CompetitionParticipant::with(['user' => function($query) {
+            $participants = CompetitionParticipant::with([
+                'user' => function ($query) {
                     $query->select('id', 'name');
-                }])
+                }
+            ])
                 ->where('competition_id', $id)
                 ->orderBy('score', 'desc')
                 ->orderBy('created_at', 'asc')
@@ -436,12 +435,12 @@ class CompetitionController extends Controller
 
             // Add rank to each participant
             $rank = (($page - 1) * $perPage) + 1; // Calculate starting rank based on page
-            $leaderboard = $participants->map(function($participant) use (&$rank) {
+            $leaderboard = $participants->map(function ($participant) use (&$rank) {
                 $data = [
                     'rank' => $rank++,
                     'user_id' => $participant->user_id,
                     'name' => $participant->user->name ?? '',
-                    'score' => (int)$participant->score,
+                    'score' => (int) $participant->score,
                     'joined_at' => $participant->created_at->toDateTimeString()
                 ];
 
@@ -449,7 +448,7 @@ class CompetitionController extends Controller
                 if ($participant->rank !== $data['rank']) {
                     $participant->update(['rank' => $data['rank']]);
                 }
-                
+
                 return $data;
             });
 
@@ -463,6 +462,7 @@ class CompetitionController extends Controller
                     'pagination' => [
                         'total' => $participants->total(),
                         'count' => $participants->count(),
+                        'per_page' => $participants->perPage(),
                         'current_page' => $participants->currentPage(),
                         'total_pages' => $participants->lastPage(),
                         'from' => $participants->firstItem() ?? 0,
@@ -481,7 +481,7 @@ class CompetitionController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to fetch competition leaderboard. Please try again later.',
@@ -500,7 +500,7 @@ class CompetitionController extends Controller
     {
         try {
             $competition = Competition::findOrFail($id);
-            
+
             // Get participants ordered by score (descending) and joined_at (ascending)
             $leaderboard = $competition->participants()
                 ->select([
@@ -558,17 +558,17 @@ class CompetitionController extends Controller
     private function getUserRank($competitionId, $userId)
     {
         $userRank = CompetitionParticipant::select([
-                'user_id',
-                'score',
-                'joined_at',
-                DB::raw('(SELECT COUNT(*) + 1 FROM competition_participants cp2 WHERE cp2.competition_id = competition_participants.competition_id AND (cp2.score > competition_participants.score OR (cp2.score = competition_participants.score AND cp2.joined_at < competition_participants.joined_at))) as rank')
-            ])
+            'user_id',
+            'score',
+            'joined_at',
+            DB::raw('(SELECT COUNT(*) + 1 FROM competition_participants cp2 WHERE cp2.competition_id = competition_participants.competition_id AND (cp2.score > competition_participants.score OR (cp2.score = competition_participants.score AND cp2.joined_at < competition_participants.joined_at))) as rank')
+        ])
             ->where('competition_id', $competitionId)
             ->where('user_id', $userId)
             ->first();
 
         return $userRank ? [
-            'rank' => (int)$userRank->rank,
+            'rank' => (int) $userRank->rank,
             'score' => $userRank->score,
             'total_participants' => CompetitionParticipant::where('competition_id', $competitionId)->count()
         ] : null;
@@ -584,11 +584,11 @@ class CompetitionController extends Controller
     {
         try {
             Log::info('Fetching competition participants', ['competition_id' => $id]);
-            
+
             // Get pagination parameters
             $perPage = $request->input('per_page', 10); // Default to 10 items per page
             $page = $request->input('page', 1);
-            
+
             // Check if competition exists
             $competition = Competition::find($id);
             if (!$competition) {
@@ -600,19 +600,21 @@ class CompetitionController extends Controller
             }
 
             // Get participants with user details and pagination
-            $participants = CompetitionParticipant::with(['user' => function($query) {
+            $participants = CompetitionParticipant::with([
+                'user' => function ($query) {
                     $query->select('id', 'name');
-                }])
+                }
+            ])
                 ->where('competition_id', $id)
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage, ['*'], 'page', $page);
 
-            $participantsData = $participants->map(function($participant) {
+            $participantsData = $participants->map(function ($participant) {
                 return [
                     'id' => $participant->id,
                     'user_id' => $participant->user_id,
                     'name' => $participant->user->name ?? '',
-                    'score' => (int)$participant->score,
+                    'score' => (int) $participant->score,
                     'rank' => $participant->rank ?? 0,
                     'joined_at' => $participant->created_at->toDateTimeString()
                 ];
@@ -628,6 +630,7 @@ class CompetitionController extends Controller
                     'pagination' => [
                         'total' => $participants->total(),
                         'count' => $participants->count(),
+                        'per_page' => $participants->perPage(),
                         'current_page' => $participants->currentPage(),
                         'total_pages' => $participants->lastPage(),
                         'from' => $participants->firstItem() ?? 0,
@@ -646,7 +649,7 @@ class CompetitionController extends Controller
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to fetch competition participants. Please try again later.',
