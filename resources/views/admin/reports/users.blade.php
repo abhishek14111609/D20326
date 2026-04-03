@@ -21,7 +21,7 @@
 @endpush
 
 @section('content')
-    <div class="container-xxl flex-grow-1 container-p-y">
+    <div id="userReportsExportRoot" class="container-xxl flex-grow-1 container-p-y">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold py-3 mb-0">User Reports</h4>
             <div>
@@ -228,8 +228,8 @@
 @push('scripts')
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 
     <script>
         // User Growth Chart
@@ -341,9 +341,8 @@
         // Export PDF functionality
         document.getElementById('exportPdf').addEventListener('click', async function() {
             const exportButton = this;
-            const reportContainer = document.querySelector('.container-xxl');
 
-            if (!reportContainer || !window.jspdf || !window.html2canvas) {
+            if (!window.jspdf) {
                 alert('Unable to export report right now. Please try again.');
                 return;
             }
@@ -352,36 +351,149 @@
                 exportButton.disabled = true;
                 exportButton.innerHTML = "<i class='bx bx-loader-alt bx-spin me-1'></i> Exporting...";
 
-                const canvas = await html2canvas(reportContainer, {
-                    scale: 2,
-                    useCORS: true,
-                    backgroundColor: '#ffffff',
-                    windowWidth: document.documentElement.scrollWidth
-                });
-
-                const imageData = canvas.toDataURL('image/png');
                 const {
                     jsPDF
                 } = window.jspdf;
                 const pdf = new jsPDF('p', 'pt', 'a4');
-
                 const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                const margin = 20;
-                const contentWidth = pageWidth - margin * 2;
-                const imageHeight = (canvas.height * contentWidth) / canvas.width;
+                const left = 40;
+                let y = 48;
 
-                let heightLeft = imageHeight;
-                let position = margin;
+                const reportDate = new Date();
+                const dateText = reportDate.toLocaleString();
 
-                pdf.addImage(imageData, 'PNG', margin, position, contentWidth, imageHeight);
-                heightLeft -= (pageHeight - margin * 2);
+                // Title
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(18);
+                pdf.text('User Reports', left, y);
 
-                while (heightLeft > 0) {
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                pdf.text(`Generated: ${dateText}`, left, y + 16);
+                y += 36;
+
+                // Summary stats from server-rendered values
+                const stats = [
+                    ['Total Registered Users', '{{ number_format($reports['total_users']) }}'],
+                    ['Active Today', '{{ number_format($reports['active_today']) }}'],
+                    ['New This Week', '{{ number_format($reports['new_this_week']) }}'],
+                    ['Premium Users', '{{ number_format($reports['premium_users']) }}'],
+                ];
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(12);
+                pdf.text('Summary', left, y);
+                y += 10;
+
+                pdf.autoTable({
+                    startY: y,
+                    margin: {
+                        left,
+                        right: 40
+                    },
+                    head: [
+                        ['Metric', 'Value']
+                    ],
+                    body: stats,
+                    styles: {
+                        fontSize: 10,
+                        cellPadding: 6
+                    },
+                    headStyles: {
+                        fillColor: [57, 73, 171]
+                    },
+                    theme: 'striped'
+                });
+                y = pdf.lastAutoTable.finalY + 22;
+
+                // Chart data summary
+                const growthData = [65, 78, 66, 89, 96, 88, 115];
+                const growthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+                const growthRows = growthLabels.map((label, index) => [label, String(growthData[index])]);
+
+                if (y > 680) {
                     pdf.addPage();
-                    position = margin - (imageHeight - heightLeft);
-                    pdf.addImage(imageData, 'PNG', margin, position, contentWidth, imageHeight);
-                    heightLeft -= (pageHeight - margin * 2);
+                    y = 48;
+                }
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(12);
+                pdf.text('User Growth', left, y);
+                y += 10;
+
+                pdf.autoTable({
+                    startY: y,
+                    margin: {
+                        left,
+                        right: 40
+                    },
+                    head: [
+                        ['Month', 'New Users']
+                    ],
+                    body: growthRows,
+                    styles: {
+                        fontSize: 10,
+                        cellPadding: 6
+                    },
+                    headStyles: {
+                        fillColor: [0, 150, 136]
+                    },
+                    theme: 'grid'
+                });
+                y = pdf.lastAutoTable.finalY + 22;
+
+                // Recent activities table from DOM
+                const activityRows = [];
+                document.querySelectorAll('table tbody tr').forEach((tr) => {
+                    const tds = tr.querySelectorAll('td');
+                    if (tds.length >= 4) {
+                        const user = (tds[0].innerText || '').replace(/\s+/g, ' ').trim();
+                        const activity = (tds[1].innerText || '').trim();
+                        const time = (tds[2].innerText || '').trim();
+                        const status = (tds[3].innerText || '').trim();
+                        activityRows.push([user, activity, time, status]);
+                    }
+                });
+
+                if (y > 620) {
+                    pdf.addPage();
+                    y = 48;
+                }
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(12);
+                pdf.text('Recent User Activities', left, y);
+                y += 10;
+
+                pdf.autoTable({
+                    startY: y,
+                    margin: {
+                        left,
+                        right: 40
+                    },
+                    head: [
+                        ['User', 'Activity', 'Time', 'Status']
+                    ],
+                    body: activityRows.length ? activityRows : [
+                        ['N/A', 'N/A', 'N/A', 'N/A']
+                    ],
+                    styles: {
+                        fontSize: 9,
+                        cellPadding: 5
+                    },
+                    headStyles: {
+                        fillColor: [255, 152, 0]
+                    },
+                    theme: 'striped'
+                });
+
+                // Footer with page numbers
+                const pageCount = pdf.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    pdf.setPage(i);
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(9);
+                    pdf.text(`Page ${i} of ${pageCount}`, pageWidth - 95, 820);
                 }
 
                 const dateStamp = new Date().toISOString().slice(0, 10);
