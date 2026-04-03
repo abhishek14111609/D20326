@@ -20,7 +20,7 @@ class ChallengeController extends Controller
         $challenges = Challenge::latest()
             ->withCount('participants')
             ->paginate(15);
-            
+
         return view('admin.challenges.index', compact('challenges'));
     }
 
@@ -40,7 +40,7 @@ class ChallengeController extends Controller
             'start_date' => now(),
             'end_date' => now()->addDays(7),
         ]);
-        
+
         return view('admin.challenges.create', compact('challenge'));
     }
 
@@ -65,20 +65,20 @@ class ChallengeController extends Controller
             'rules' => 'nullable|string',
             'is_featured' => 'boolean',
         ]);
-        
+
         // Handle file upload
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('challenges', 'public');
             $validated['image'] = $path;
         }
-        
+
         // Create the challenge
         $challenge = Challenge::create($validated);
-        
+
         return redirect()->route('admin.challenges.index')
             ->with('success', 'Challenge created successfully.');
     }
-    
+
     /**
      * Display the specified challenge.
      *
@@ -90,7 +90,7 @@ class ChallengeController extends Controller
         $challenge->loadCount('participants');
         return view('admin.challenges.show', compact('challenge'));
     }
-    
+
     /**
      * Show the form for editing the specified challenge.
      *
@@ -101,7 +101,7 @@ class ChallengeController extends Controller
     {
         return view('admin.challenges.edit', compact('challenge'));
     }
-    
+
     /**
      * Update the specified challenge in storage.
      *
@@ -124,7 +124,7 @@ class ChallengeController extends Controller
             'rules' => 'nullable|string',
             'is_featured' => 'boolean',
         ]);
-        
+
         // Handle file upload
         if ($request->hasFile('image')) {
             // Delete old image if exists
@@ -134,14 +134,14 @@ class ChallengeController extends Controller
             $path = $request->file('image')->store('challenges', 'public');
             $validated['image'] = $path;
         }
-        
+
         // Update the challenge
         $challenge->update($validated);
-        
+
         return redirect()->route('admin.challenges.index')
             ->with('success', 'Challenge updated successfully.');
     }
-    
+
     /**
      * Remove the specified challenge from storage.
      *
@@ -154,9 +154,9 @@ class ChallengeController extends Controller
         if ($challenge->image) {
             Storage::disk('public')->delete($challenge->image);
         }
-        
+
         $challenge->delete();
-        
+
         return redirect()->route('admin.challenges.index')
             ->with('success', 'Challenge deleted successfully.');
     }

@@ -32,11 +32,11 @@ class AdminController extends Controller implements HasMedia
         $currentYear = now()->year;
         $currentMonth = now()->month;
         $years = range($currentYear - 4, $currentYear);
-        
+
         // Debug: Check if payments table exists and has data
         $hasPayments = DB::table('payments')->exists();
         $paymentCount = $hasPayments ? DB::table('payments')->count() : 0;
-        
+
         // Log payment data for debugging
         \Log::info('Payment data check:', [
             'table_exists' => $hasPayments,
@@ -50,14 +50,14 @@ class AdminController extends Controller implements HasMedia
 
         // Get payment data for the current year (grouped by month)
         $monthlyPayments = Payment::select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('YEAR(created_at) as year'),
-                DB::raw('COUNT(DISTINCT user_id) as active_users'),
-                DB::raw('COUNT(*) as transaction_count'),
-                DB::raw('SUM(CASE WHEN status = "succeeded" THEN amount ELSE 0 END) as total_revenue'),
-                DB::raw('SUM(CASE WHEN status = "succeeded" AND payment_method != "refund" THEN amount ELSE 0 END) as income'),
-                DB::raw('SUM(CASE WHEN payment_method = "refund" THEN amount ELSE 0 END) as expenses')
-            )
+            DB::raw('MONTH(created_at) as month'),
+            DB::raw('YEAR(created_at) as year'),
+            DB::raw('COUNT(DISTINCT user_id) as active_users'),
+            DB::raw('COUNT(*) as transaction_count'),
+            DB::raw('SUM(CASE WHEN status = "succeeded" THEN amount ELSE 0 END) as total_revenue'),
+            DB::raw('SUM(CASE WHEN status = "succeeded" AND payment_method != "refund" THEN amount ELSE 0 END) as income'),
+            DB::raw('SUM(CASE WHEN payment_method = "refund" THEN amount ELSE 0 END) as expenses')
+        )
             ->whereYear('created_at', $currentYear)
             ->groupBy('year', 'month')
             ->orderBy('year')
@@ -89,13 +89,13 @@ class AdminController extends Controller implements HasMedia
 
         // Get payment data for the last 5 years (grouped by year)
         $yearlyPayments = Payment::select(
-                DB::raw('YEAR(created_at) as year'),
-                DB::raw('COUNT(DISTINCT user_id) as active_users'),
-                DB::raw('COUNT(*) as transaction_count'),
-                DB::raw('SUM(CASE WHEN status = "succeeded" THEN amount ELSE 0 END) as total_revenue'),
-                DB::raw('SUM(CASE WHEN status = "succeeded" AND payment_method != "refund" THEN amount ELSE 0 END) as income'),
-                DB::raw('SUM(CASE WHEN payment_method = "refund" THEN amount ELSE 0 END) as expenses')
-            )
+            DB::raw('YEAR(created_at) as year'),
+            DB::raw('COUNT(DISTINCT user_id) as active_users'),
+            DB::raw('COUNT(*) as transaction_count'),
+            DB::raw('SUM(CASE WHEN status = "succeeded" THEN amount ELSE 0 END) as total_revenue'),
+            DB::raw('SUM(CASE WHEN status = "succeeded" AND payment_method != "refund" THEN amount ELSE 0 END) as income'),
+            DB::raw('SUM(CASE WHEN payment_method = "refund" THEN amount ELSE 0 END) as expenses')
+        )
             ->whereIn(DB::raw('YEAR(created_at)'), $years)
             ->groupBy('year')
             ->orderBy('year')
@@ -128,10 +128,10 @@ class AdminController extends Controller implements HasMedia
 
         // Get user growth data
         $monthlyUserGrowth = User::select(
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('YEAR(created_at) as year'),
-                DB::raw('COUNT(*) as user_count')
-            )
+            DB::raw('MONTH(created_at) as month'),
+            DB::raw('YEAR(created_at) as year'),
+            DB::raw('COUNT(*) as user_count')
+        )
             ->whereYear('created_at', $currentYear)
             ->groupBy('year', 'month')
             ->orderBy('year')
@@ -143,7 +143,7 @@ class AdminController extends Controller implements HasMedia
             'new_users' => 0,
             'total_users' => 0
         ]);
-        
+
         // Fill in actual user data
         $cumulativeUsers = User::whereYear('created_at', '<', $currentYear)->count();
         foreach ($monthlyUserGrowth as $userData) {
@@ -155,16 +155,16 @@ class AdminController extends Controller implements HasMedia
 
         // Calculate cumulative users for the year
         $cumulative = 0;
-        $cumulativeUserData = array_map(function($month) use (&$cumulative) {
+        $cumulativeUserData = array_map(function ($month) use (&$cumulative) {
             $cumulative += $month['new_users'];
             return $cumulative;
         }, $monthlyUserData);
 
         // Get yearly user growth
         $yearlyUserGrowth = User::select(
-                DB::raw('YEAR(created_at) as year'),
-                DB::raw('COUNT(*) as user_count')
-            )
+            DB::raw('YEAR(created_at) as year'),
+            DB::raw('COUNT(*) as user_count')
+        )
             ->whereIn(DB::raw('YEAR(created_at)'), $years)
             ->groupBy('year')
             ->orderBy('year')
@@ -185,9 +185,9 @@ class AdminController extends Controller implements HasMedia
 
         // Get payment status counts
         $paymentStatusCounts = Payment::select(
-                'status',
-                DB::raw('COUNT(*) as count')
-            )
+            'status',
+            DB::raw('COUNT(*) as count')
+        )
             ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
@@ -200,9 +200,9 @@ class AdminController extends Controller implements HasMedia
 
         // Get gender distribution
         $genderDistribution = UserProfile::select(
-                'gender',
-                DB::raw('COUNT(*) as count')
-            )
+            'gender',
+            DB::raw('COUNT(*) as count')
+        )
             ->groupBy('gender')
             ->pluck('count', 'gender')
             ->toArray();
@@ -211,9 +211,9 @@ class AdminController extends Controller implements HasMedia
         $thirtyDaysAgo = now()->subDays(30);
         $stats = [
             'total_users' => User::count(),
-            'active_users' => User::where(function($query) use ($thirtyDaysAgo) {
+            'active_users' => User::where(function ($query) use ($thirtyDaysAgo) {
                 $query->where('last_seen', '>=', $thirtyDaysAgo)
-                      ->orWhere('updated_at', '>=', $thirtyDaysAgo);
+                    ->orWhere('updated_at', '>=', $thirtyDaysAgo);
             })->count(),
             'new_users_today' => User::whereDate('created_at', today())->count(),
             'total_revenue' => Payment::where('status', 'succeeded')->sum('amount'),
@@ -285,13 +285,13 @@ class AdminController extends Controller implements HasMedia
     public function showSwipe(Swipe $swipe)
     {
         $swipe->load(['swiper', 'swiped']);
-        
+
         $activities = [
             'swiped_at' => $swipe->created_at->format('M d, Y h:i A'),
             'matched' => $swipe->matched ? 'Yes' : 'No',
             'match_date' => $swipe->matched ? $swipe->updated_at->format('M d, Y h:i A') : 'N/A',
         ];
-        
+
         return view('admin.swipes.show', compact('swipe', 'activities'));
     }
 
@@ -304,7 +304,7 @@ class AdminController extends Controller implements HasMedia
     public function deleteSwipe(Swipe $swipe)
     {
         $swipe->delete();
-        
+
         return redirect()->route('admin.swipes.index')
             ->with('success', 'Swipe deleted successfully');
     }
@@ -367,7 +367,7 @@ class AdminController extends Controller implements HasMedia
         $users = User::withCount(['sentSwipes', 'receivedSwipes', 'sentMessages'])
             ->orderBy('created_at', 'desc') // Temporarily sort by creation date
             ->paginate(10);
-            
+
         return view('admin.leaderboard.index', compact('users'));
     }
 
@@ -380,11 +380,11 @@ class AdminController extends Controller implements HasMedia
             'total_users' => User::count(),
             'active_today' => User::whereDate('last_seen', today())->count(),
             'new_this_week' => User::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
-            'premium_users' => User::whereHas('memberships', function($q) {
+            'premium_users' => User::whereHas('memberships', function ($q) {
                 $q->where('status', 'active');
             })->count(),
         ];
-        
+
         return view('admin.reports.users', compact('reports'));
     }
 
@@ -399,7 +399,7 @@ class AdminController extends Controller implements HasMedia
             'active_sessions' => User::where('last_seen', '>=', now()->subMinutes(5))->count(),
             'storage_usage' => $this->getStorageUsage(),
         ];
-        
+
         return view('admin.reports.system', compact('reports'));
     }
 
@@ -422,18 +422,18 @@ class AdminController extends Controller implements HasMedia
     {
         // Load user relationships if needed
         $user->loadCount(['sentSwipes', 'receivedSwipes', 'sentMessages', 'receivedMessages', 'memberships', 'payments']);
-        
+
         // Get user's recent activities
         $recentActivities = [
             'last_login' => $user->last_seen ? $user->last_seen->diffForHumans() : 'Never',
             'joined_date' => $user->created_at->format('M d, Y'),
-            'total_matches' => $user->sentSwipes()->where('matched', true)->count() + 
-                             $user->receivedSwipes()->where('matched', true)->count(),
+            'total_matches' => $user->sentSwipes()->where('matched', true)->count() +
+                $user->receivedSwipes()->where('matched', true)->count(),
         ];
-        
+
         // Get user's subscription status
         $subscription = $user->memberships()->latest()->first();
-        
+
         return view('admin.users.show', compact('user', 'recentActivities', 'subscription'));
     }
 
@@ -556,7 +556,7 @@ class AdminController extends Controller implements HasMedia
         ]);
 
         $gift = Gift::create($validated);
-        
+
         if ($request->hasFile('image')) {
             $gift->addMediaFromRequest('image')->toMediaCollection('gifts');
         }
@@ -586,7 +586,7 @@ class AdminController extends Controller implements HasMedia
         ]);
 
         $gift->update($validated);
-        
+
         if ($request->hasFile('image')) {
             $gift->clearMediaCollection('gifts');
             $gift->addMediaFromRequest('image')->toMediaCollection('gifts');
@@ -613,7 +613,7 @@ class AdminController extends Controller implements HasMedia
     {
         // Get all settings from the database
         $dbSettings = \App\Models\Setting::all()->pluck('value', 'key')->toArray();
-        
+
         // Define default settings with fallbacks
         $settings = [
             'site_name' => $dbSettings['site_name'] ?? config('app.name'),
@@ -679,7 +679,7 @@ class AdminController extends Controller implements HasMedia
             'services.audio_call.key' => $validated['audio_call_api_key'] ?? null,
             'services.push_notifications.enabled' => $request->has('enable_push_notifications'),
         ]);
-        
+
         return redirect()->route('admin.settings.index')
             ->with('success', 'Settings updated successfully');
     }
@@ -699,7 +699,7 @@ class AdminController extends Controller implements HasMedia
     public function updateAccountSettings(Request $request)
     {
         $admin = auth('admin')->user();
-        
+
         // Validate the request data
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -713,24 +713,23 @@ class AdminController extends Controller implements HasMedia
             // Update basic info
             $admin->name = $validated['name'];
             $admin->email = $validated['email'];
-            
+
             // Update password if provided
             if (!empty($validated['new_password'])) {
                 $admin->password = Hash::make($validated['new_password']);
             }
-            
+
             // Handle avatar upload
             if ($request->hasFile('avatar')) {
                 $admin->clearMediaCollection('avatars');
                 $admin->addMediaFromRequest('avatar')
-                     ->usingFileName('avatar-' . time() . '.' . $request->file('avatar')->getClientOriginalExtension())
-                     ->toMediaCollection('avatars');
+                    ->usingFileName('avatar-' . time() . '.' . $request->file('avatar')->getClientOriginalExtension())
+                    ->toMediaCollection('avatars');
             }
-            
+
             $admin->save();
-            
+
             return back()->with('success', 'Account settings updated successfully!');
-            
         } catch (\Exception $e) {
             return back()->with('error', 'Error updating account settings: ' . $e->getMessage());
         }
@@ -769,7 +768,7 @@ class AdminController extends Controller implements HasMedia
         $total = disk_total_space(storage_path());
         $free = disk_free_space(storage_path());
         $used = $total - $free;
-        
+
         return [
             'total' => $this->formatBytes($total),
             'used' => $this->formatBytes($used),
@@ -782,14 +781,14 @@ class AdminController extends Controller implements HasMedia
      * Format bytes to human readable format
      */
     protected function formatBytes($bytes, $precision = 2)
-    { 
-        $units = ['B', 'KB', 'MB', 'GB', 'TB']; 
-        $bytes = max($bytes, 0); 
-        $pow = floor(($bytes ? log($bytes) : 0) / log(1024)); 
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
         $pow = min($pow, count($units) - 1);
-        $bytes /= (1 << (10 * $pow)); 
+        $bytes /= (1 << (10 * $pow));
 
-        return round($bytes, $precision) . ' ' . $units[$pow]; 
+        return round($bytes, $precision) . ' ' . $units[$pow];
     }
 
     /**
@@ -801,21 +800,21 @@ class AdminController extends Controller implements HasMedia
         $months = collect(range(5, 0))->map(function ($month) use (&$revenueData) {
             $date = now()->subMonths($month);
             $monthName = $date->format('M');
-            
+
             $revenue = Membership::where('memberships.status', 'active')
                 ->whereYear('memberships.created_at', $date->year)
                 ->whereMonth('memberships.created_at', $date->month)
                 ->join('plans', 'memberships.plan_id', '=', 'plans.id')
                 ->sum('plans.price');
-                
+
             $revenueData[] = [
                 'month' => $monthName,
                 'revenue' => $revenue
             ];
-            
+
             return $monthName;
         });
-        
+
         return [
             'labels' => $months->toArray(),
             'data' => array_column($revenueData, 'revenue')
@@ -831,15 +830,15 @@ class AdminController extends Controller implements HasMedia
         $months = collect(range(5, 0))->map(function ($month) use (&$growthData) {
             $date = now()->subMonths($month);
             $monthName = $date->format('M');
-            
+
             $count = User::whereYear('users.created_at', $date->year)
                 ->whereMonth('users.created_at', '<=', $date->month)
                 ->count();
-                
+
             $growthData[] = $count;
             return $monthName;
         });
-        
+
         return [
             'labels' => $months->toArray(),
             'data' => $growthData
@@ -857,7 +856,7 @@ class AdminController extends Controller implements HasMedia
 
     /**
      * Get revenue data for the dashboard chart
-     * 
+     *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
@@ -865,30 +864,30 @@ class AdminController extends Controller implements HasMedia
     {
         $filter = $request->query('filter', 'monthly');
         $year = $request->query('year', date('Y'));
-        
+
         if ($filter === 'yearly') {
             // Get data for last 5 years
             $currentYear = (int)date('Y');
             $startYear = $currentYear - 4; // Last 5 years including current
-            
+
             $revenueData = [];
             $labels = [];
             $hasData = false;
-            
+
             for ($year = $startYear; $year <= $currentYear; $year++) {
                 $yearlyRevenue = \App\Models\Payment::where('status', 'succeeded')
                     ->where('payment_method', '!=', 'refund')
                     ->whereYear('created_at', $year)
                     ->sum('amount');
-                
+
                 $revenueData[] = (float)$yearlyRevenue;
                 $labels[] = $year;
-                
+
                 if ($yearlyRevenue > 0) {
                     $hasData = true;
                 }
             }
-            
+
             // If no data found, generate dummy data
             if (!$hasData) {
                 $revenueData = [];
@@ -898,35 +897,34 @@ class AdminController extends Controller implements HasMedia
                     $revenueData[] = rand(5000, 50000);
                 }
             }
-            
+
             return response()->json([
                 'success' => true,
                 'labels' => $labels,
                 'amounts' => $revenueData,
                 'is_dummy' => !$hasData
             ]);
-            
         } else {
             // Default to monthly data for current year
             $monthlyData = [];
             $labels = [];
             $hasData = false;
-            
+
             for ($month = 1; $month <= 12; $month++) {
                 $monthlyRevenue = \App\Models\Payment::where('status', 'succeeded')
                     ->where('payment_method', '!=', 'refund')
                     ->whereYear('created_at', $year)
                     ->whereMonth('created_at', $month)
                     ->sum('amount');
-                
+
                 $monthlyData[] = (float)$monthlyRevenue;
                 $labels[] = date('M', mktime(0, 0, 0, $month, 1));
-                
+
                 if ($monthlyRevenue > 0) {
                     $hasData = true;
                 }
             }
-            
+
             // If no data found, generate dummy data
             if (!$hasData) {
                 $monthlyData = [];
@@ -936,7 +934,7 @@ class AdminController extends Controller implements HasMedia
                     $monthlyData[] = rand(1000, 10000);
                 }
             }
-            
+
             return response()->json([
                 'success' => true,
                 'labels' => $labels,
@@ -958,11 +956,11 @@ class AdminController extends Controller implements HasMedia
         $gift->load([
             'category',
             'userGifts' => function ($query) {
-                $query->with(['sender' => function($q) {
-                        $q->with('media');
-                    }, 'receiver' => function($q) {
-                        $q->with('media');
-                    }])
+                $query->with(['sender' => function ($q) {
+                    $q->with('media');
+                }, 'receiver' => function ($q) {
+                    $q->with('media');
+                }])
                     ->latest()
                     ->take(10); // Limit to 10 most recent gifts
             },
@@ -972,11 +970,15 @@ class AdminController extends Controller implements HasMedia
         // Calculate gift statistics
         $totalGiftsSent = $gift->userGifts()->count();
         $totalRevenue = $gift->userGifts()->sum('price');
-        
+
         // Get top senders with proper grouping
         $topSenders = DB::table('user_gifts')
-            ->select('users.id', 'users.name', 'users.email',
-                    DB::raw('count(*) as gift_count'))
+            ->select(
+                'users.id',
+                'users.name',
+                'users.email',
+                DB::raw('count(*) as gift_count')
+            )
             ->join('users', 'user_gifts.sender_id', '=', 'users.id')
             ->where('user_gifts.gift_id', $gift->id)
             ->whereNull('users.deleted_at')
@@ -990,7 +992,7 @@ class AdminController extends Controller implements HasMedia
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'profile_photo_url' => $userModel->getFirstMediaUrl('profile_image') 
+                    'profile_photo_url' => $userModel->getFirstMediaUrl('profile_image')
                         ?: 'https://ui-avatars.com/api/?name=' . urlencode($user->name) . '&color=7F9CF5&background=EBF4FF',
                     'gift_count' => $user->gift_count
                 ];
@@ -998,8 +1000,12 @@ class AdminController extends Controller implements HasMedia
 
         // Get top receivers with proper grouping
         $topReceivers = DB::table('user_gifts')
-            ->select('users.id', 'users.name', 'users.email',
-                    DB::raw('count(*) as received_count'))
+            ->select(
+                'users.id',
+                'users.name',
+                'users.email',
+                DB::raw('count(*) as received_count')
+            )
             ->join('users', 'user_gifts.receiver_id', '=', 'users.id')
             ->where('user_gifts.gift_id', $gift->id)
             ->whereNull('users.deleted_at')

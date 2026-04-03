@@ -28,7 +28,7 @@ class MembershipController extends Controller
     {
         $this->middleware('auth:admin');
     }
-    
+
     /**
      * Show the form for creating a new membership plan.
      *
@@ -42,10 +42,10 @@ class MembershipController extends Controller
             'month' => 'Month(s)',
             'year' => 'Year(s)'
         ];
-        
+
         return view('admin.pages.membership-plans.create', compact('durations'));
     }
-    
+
     /**
      * Display a list of users who have purchased memberships
      *
@@ -54,39 +54,39 @@ class MembershipController extends Controller
      */
     public function userPurchases(Request $request)
     {
-        $query = User::withCount(['userMemberships as active_memberships' => function($q) {
-                $q->where('status', 'active')
-                  ->where('ends_at', '>=', now());
-            }])
+        $query = User::withCount(['userMemberships as active_memberships' => function ($q) {
+            $q->where('status', 'active')
+                ->where('ends_at', '>=', now());
+        }])
             ->with(['userMemberships.plan'])
             ->whereHas('userMemberships')
-            ->when($request->filled('search'), function($q) use ($request) {
+            ->when($request->filled('search'), function ($q) use ($request) {
                 $search = '%' . $request->search . '%';
                 $q->where('name', 'like', $search)
-                  ->orWhere('email', 'like', $search);
+                    ->orWhere('email', 'like', $search);
             })
-            ->when($request->filled('plan_id'), function($q) use ($request) {
-                $q->whereHas('userMemberships', function($q) use ($request) {
+            ->when($request->filled('plan_id'), function ($q) use ($request) {
+                $q->whereHas('userMemberships', function ($q) use ($request) {
                     $q->where('membership_plan_id', $request->plan_id);
                 });
             })
-            ->when($request->filled('status'), function($q) use ($request) {
-                $q->whereHas('userMemberships', function($q) use ($request) {
+            ->when($request->filled('status'), function ($q) use ($request) {
+                $q->whereHas('userMemberships', function ($q) use ($request) {
                     if ($request->status === 'active') {
                         $q->where('status', 'active')
-                          ->where('ends_at', '>=', now());
+                            ->where('ends_at', '>=', now());
                     } else if ($request->status === 'expired') {
                         $q->where('status', 'active')
-                          ->where('ends_at', '<', now());
+                            ->where('ends_at', '<', now());
                     } else {
                         $q->where('status', $request->status);
                     }
                 });
             });
-            
+
         $users = $query->latest()->paginate(15);
         $plans = MembershipPlan::pluck('name', 'id');
-        
+
         return view('admin.pages.memberships.user-purchases', compact('users', 'plans'));
     }
 
@@ -147,7 +147,7 @@ class MembershipController extends Controller
             'month' => 'Month(s)',
             'year' => 'Year(s)'
         ];
-        
+
         return view('admin.pages.membership-plans.edit', compact('membership', 'durations'));
     }
 
@@ -199,7 +199,7 @@ class MembershipController extends Controller
     public function destroy(MembershipPlan $membership)
     {
         $membership->delete();
-        
+
         return redirect()
             ->route('admin.memberships.index')
             ->with('success', 'Membership plan deleted successfully.');

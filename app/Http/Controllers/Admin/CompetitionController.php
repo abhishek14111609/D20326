@@ -19,22 +19,22 @@ class CompetitionController extends Controller
      */
     public function index()
     {
-		$competitions = Competition::latest()
-			->with(['participants' => function ($query) {
-				// Join users table to get users' data
-				$query->select('users.id', 'users.name', 'users.avatar')
-					  ->join('users', 'users.id', '=', 'competition_participants.user_id')  // Ensure proper join
-					  ->whereNull('competition_participants.deleted_at')  // Optional, in case you want to filter soft deleted rows
-					  ->latest('competition_participants.created_at')
-					  ->take(3);  // Limit to 3 participants
-			}])
-			->withCount('participants')  // Get total count of participants
-			->paginate(15);  // Paginate the competitions (15 per page)
+        $competitions = Competition::latest()
+            ->with(['participants' => function ($query) {
+                // Join users table to get users' data
+                $query->select('users.id', 'users.name', 'users.avatar')
+                    ->join('users', 'users.id', '=', 'competition_participants.user_id')  // Ensure proper join
+                    ->whereNull('competition_participants.deleted_at')  // Optional, in case you want to filter soft deleted rows
+                    ->latest('competition_participants.created_at')
+                    ->take(3);  // Limit to 3 participants
+            }])
+            ->withCount('participants')  // Get total count of participants
+            ->paginate(15);  // Paginate the competitions (15 per page)
 
-            
+
         return view('admin.competitions.index', compact('competitions'));
     }
-    
+
     /**
      * Show the form for creating a new competition.
      *
@@ -58,10 +58,10 @@ class CompetitionController extends Controller
             'sort_order' => 0,
             'tags' => json_encode([])
         ]);
-        
+
         return view('admin.competitions.create', compact('competition'));
     }
-    
+
     /**
      * Store a newly created competition in storage.
      *
@@ -115,20 +115,20 @@ class CompetitionController extends Controller
             'timezone' => 'nullable|timezone',
             'tags' => 'nullable|string',
         ]);
-        
+
         // Store the type for participant creation
         $competitionType = $validated['type'];
-        
+
         // Remove type from validated data to prevent it from being saved to competitions table
         unset($validated['type']);
-        
+
         // Map form field names to database column names
         $validated['start_date'] = $validated['competition_start'];
         $validated['end_date'] = $validated['competition_end'];
-        
+
         // Remove the form field names to avoid mass assignment issues
         unset($validated['competition_start'], $validated['competition_end']);
-        
+
         // Process prizes array if present
         if ($request->has('prizes') && is_array($request->prizes)) {
             $validated['prizes'] = json_encode($request->prizes);
@@ -139,13 +139,13 @@ class CompetitionController extends Controller
                 ['name' => '3rd Place', 'value' => null, 'description' => null],
             ]);
         }
-        
+
         // Set default values if not provided
         $validated['entry_fee'] = $validated['entry_fee'] ?? 0;
         $validated['currency'] = $validated['currency'] ?? 'USD';
         $validated['is_featured'] = $validated['is_featured'] ?? false;
         $validated['timezone'] = $validated['timezone'] ?? config('app.timezone');
-        
+
         // Handle file uploads
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('competitions/images', 'public');
@@ -154,7 +154,7 @@ class CompetitionController extends Controller
             // Set default image path if no image is uploaded
             $validated['image'] = 'competitions/images/default-competition.jpg';
         }
-        
+
         if ($request->hasFile('banner_image')) {
             $bannerPath = $request->file('banner_image')->store('competitions/banners', 'public');
             $validated['banner_image'] = $bannerPath;
@@ -162,7 +162,7 @@ class CompetitionController extends Controller
             // Set default banner path if no banner is uploaded
             $validated['banner_image'] = 'competitions/banners/default-banner.jpg';
         }
-        
+
         // Make sure the storage directory exists
         if (!Storage::disk('public')->exists('competitions/images')) {
             Storage::disk('public')->makeDirectory('competitions/images');
@@ -170,22 +170,22 @@ class CompetitionController extends Controller
         if (!Storage::disk('public')->exists('competitions/banners')) {
             Storage::disk('public')->makeDirectory('competitions/banners');
         }
-        
+
         // Create the competition and participant in a transaction
         return \DB::transaction(function () use ($validated, $competitionType) {
             try {
                 // Create the competition
                 $competition = Competition::create($validated);
-                
+
                 // Only proceed if user is authenticated
                 if (!auth()->check()) {
                     return redirect()->route('admin.competitions.index')
                         ->with('success', 'Competition created successfully!');
                 }
-                
+
                 $user = auth()->user();
                 $now = now();
-                
+
                 // Prepare participant data
                 $participantData = [
                     'competition_id' => $competition->id,
@@ -195,17 +195,17 @@ class CompetitionController extends Controller
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
-                
+
                 // Insert participant directly to avoid model events
                 \DB::table('competition_participants')->insert($participantData);
-                
+
                 // Handle team creation if needed
                 if (in_array($competitionType, ['team', 'tournament', 'league'])) {
                     // Check if teams table exists
                     if (!\Schema::hasTable('teams')) {
                         throw new \Exception('Teams functionality is not properly set up. Please run the database migrations.');
                     }
-                    
+
                     // Create team with the current user as leader
                     $team = new Team([
                         'competition_id' => $competition->id,
@@ -219,9 +219,9 @@ class CompetitionController extends Controller
                             'created_at' => now()->toDateTimeString(),
                         ]
                     ]);
-                    
+
                     $team->save();
-                    
+
                     // Add the user to the team
                     $team->members()->attach($user->id, [
                         'role' => 'leader',
@@ -229,28 +229,27 @@ class CompetitionController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
-                    
+
                     // Update the participant record with team_id if needed
                     \DB::table('competition_participants')
                         ->where('competition_id', $competition->id)
                         ->where('user_id', $user->id)
                         ->update(['team_id' => $team->id]);
                 }
-                
+
                 return redirect()->route('admin.competitions.show', $competition->id)
                     ->with('success', 'Competition created successfully!');
-                    
             } catch (\Exception $e) {
                 \Log::error('Error creating competition: ' . $e->getMessage());
                 \Log::error($e->getTraceAsString());
-                
+
                 return back()
                     ->withInput()
                     ->with('error', 'Failed to create competition. ' . $e->getMessage());
             }
         });
     }
-    
+
     /**
      * Display the specified competition.
      *
@@ -260,24 +259,24 @@ class CompetitionController extends Controller
     public function show(Competition $competition)
     {
         $participants = DB::table('competition_participants')
-						->leftjoin('users', 'users.id', '=', 'competition_participants.user_id')
-						->leftjoin('competitions', 'competitions.id', '=', 'competition_participants.competition_id')
-						->where('competitions.id', $competition->id)
-						->select(
-							'users.id as user_id',
-							'users.name',
-							'users.email',
-							'competition_participants.status',
-							'competition_participants.created_at',
-							'competitions.title'
-						)
-						->orderBy('competition_participants.created_at', 'desc')
-						->get();
-		//dd($competition);
-        
+            ->leftjoin('users', 'users.id', '=', 'competition_participants.user_id')
+            ->leftjoin('competitions', 'competitions.id', '=', 'competition_participants.competition_id')
+            ->where('competitions.id', $competition->id)
+            ->select(
+                'users.id as user_id',
+                'users.name',
+                'users.email',
+                'competition_participants.status',
+                'competition_participants.created_at',
+                'competitions.title'
+            )
+            ->orderBy('competition_participants.created_at', 'desc')
+            ->get();
+        //dd($competition);
+
         return view('admin.competitions.show', compact('competition', 'participants'));
     }
-    
+
     /**
      * Show the form for editing the specified competition.
      *
@@ -287,12 +286,12 @@ class CompetitionController extends Controller
     public function edit(Competition $competition)
     {
         // Load the competition with necessary relationships
-        $competition->load(['participants' => function($query) {
+        $competition->load(['participants' => function ($query) {
             $query->with(['user:id,name,avatar'])
                 ->latest('competition_participants.created_at')
                 ->limit(3);
         }]);
-        
+
         // Ensure prizes is always an array
         if (empty($competition->prizes) || $competition->prizes === 'null') {
             $competition->prizes = [
@@ -301,15 +300,15 @@ class CompetitionController extends Controller
                 ['name' => '3rd Place', 'value' => null, 'description' => null],
             ];
         }
-        
+
         // Ensure tags is always an array
         if (empty($competition->tags) || $competition->tags === 'null') {
             $competition->tags = [];
         }
-        
+
         return view('admin.competitions.edit', compact('competition'));
     }
-    
+
     /**
      * Update the specified competition in storage.
      *
@@ -339,7 +338,7 @@ class CompetitionController extends Controller
             'is_featured' => 'boolean',
             'timezone' => 'required|string|timezone',
         ]);
-        
+
         // Handle file uploads
         if ($request->hasFile('image')) {
             // Delete old image if exists
@@ -349,7 +348,7 @@ class CompetitionController extends Controller
             $path = $request->file('image')->store('competitions', 'public');
             $validated['image'] = $path;
         }
-        
+
         if ($request->hasFile('banner_image')) {
             // Delete old banner if exists
             if ($competition->banner_image) {
@@ -358,14 +357,14 @@ class CompetitionController extends Controller
             $path = $request->file('banner_image')->store('competitions/banners', 'public');
             $validated['banner_image'] = $path;
         }
-        
+
         // Update the competition
         $competition->update($validated);
-        
+
         return redirect()->route('admin.competitions.index')
             ->with('success', 'Competition updated successfully.');
     }
-    
+
     /**
      * Remove the specified competition from storage.
      *
@@ -378,13 +377,13 @@ class CompetitionController extends Controller
         if ($competition->image) {
             Storage::disk('public')->delete($competition->image);
         }
-        
+
         if ($competition->banner_image) {
             Storage::disk('public')->delete($competition->banner_image);
         }
-        
+
         $competition->delete();
-        
+
         return redirect()->route('admin.competitions.index')
             ->with('success', 'Competition deleted successfully.');
     }
