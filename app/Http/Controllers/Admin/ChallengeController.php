@@ -160,4 +160,19 @@ class ChallengeController extends Controller
         return redirect()->route('admin.challenges.index')
             ->with('success', 'Challenge deleted successfully.');
     }
+
+    /**
+     * Cancel the specified challenge.
+     */
+    public function cancel(Challenge $challenge)
+    {
+        if ($challenge->status === 'completed' || $challenge->status === 'cancelled') {
+            return redirect()->back()->with('error', 'Only active or upcoming challenges can be cancelled.');
+        }
+
+        $challenge->update(['status' => 'cancelled']);
+
+        return redirect()->route('admin.challenges.index')
+            ->with('success', 'Challenge cancelled successfully.');
+    }
 }

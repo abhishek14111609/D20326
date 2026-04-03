@@ -99,12 +99,12 @@
               <div class="timeline-event">
                 <div class="timeline-header mb-1">
                   <h6 class="mb-0">Last Login</h6>
-                  <small class="text-muted">{{ $admin->last_login_at->diffForHumans() }}</small>
+                  <small class="text-muted">{{ $admin->last_login_at->timezone(config('app.admin_display_timezone', 'Asia/Kolkata'))->diffForHumans() }}</small>
                 </div>
                 <p class="mb-2">Successfully logged in from IP: {{ $admin->last_login_ip ?? 'Unknown' }}</p>
                 <div class="d-flex">
                   <span class="badge bg-label-primary me-2">Login</span>
-                  <span class="text-muted">{{ $admin->last_login_at->format('M d, Y H:i:s') }}</span>
+                  <span class="text-muted">{{ $admin->last_login_at->timezone(config('app.admin_display_timezone', 'Asia/Kolkata'))->format('M d, Y h:i:s A') }}</span>
                 </div>
               </div>
             </li>
@@ -166,7 +166,7 @@
             <div class="col-md-6 mb-3">
               <label class="form-label">Last Login</label>
               <div class="form-control">
-                {{ $admin->last_login_at ? $admin->last_login_at->format('M d, Y H:i:s') : 'Never' }}
+                {{ $admin->last_login_at ? $admin->last_login_at->timezone(config('app.admin_display_timezone', 'Asia/Kolkata'))->format('M d, Y h:i:s A') : 'Never' }}
               </div>
             </div>
             <div class="col-md-6 mb-3">
@@ -192,103 +192,23 @@
       <div class="modal-body">
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         <div class="text-center mb-4">
-          <h3 class="mb-2">Edit User Information</h3>
-          <p class="text-muted">Updating user details will receive a privacy audit.</p>
+          <h3 class="mb-2">Edit Profile</h3>
+          <p class="text-muted">Update your profile details.</p>
         </div>
-        <form id="editUserForm" class="row g-3" onsubmit="return false">
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="modalEditUserFirstName">First Name</label>
-            <input type="text" id="modalEditUserFirstName" name="modalEditUserFirstName" class="form-control" placeholder="John" />
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="modalEditUserLastName">Last Name</label>
-            <input type="text" id="modalEditUserLastName" name="modalEditUserLastName" class="form-control" placeholder="Doe" />
+        <form action="{{ route('admin.account.settings.update') }}" method="POST" class="row g-3">
+          @csrf
+          @method('PUT')
+          <div class="col-12">
+            <label class="form-label" for="profileName">Name</label>
+            <input type="text" id="profileName" name="name" class="form-control" value="{{ old('name', $admin->name) }}" required>
           </div>
           <div class="col-12">
-            <label class="form-label" for="modalEditUserName">Username</label>
-            <input type="text" id="modalEditUserName" name="modalEditUserName" class="form-control" placeholder="john.doe.007" />
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="modalEditUserEmail">Email</label>
-            <input type="text" id="modalEditUserEmail" name="modalEditUserEmail" class="form-control" placeholder="example@domain.com" />
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="modalEditUserStatus">Status</label>
-            <select id="modalEditUserStatus" name="modalEditUserStatus" class="form-select" aria-label="Default select example">
-              <option selected>Status</option>
-              <option value="1">Active</option>
-              <option value="2">Inactive</option>
-              <option value="3">Suspended</option>
-            </select>
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="modalEditTaxID">Tax ID</label>
-            <input type="text" id="modalEditTaxID" name="modalEditTaxID" class="form-control modal-edit-tax-id" placeholder="123 456 7890" />
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="modalEditUserPhone">Phone Number</label>
-            <div class="input-group input-group-merge">
-              <span class="input-group-text">+1</span>
-              <input type="text" id="modalEditUserPhone" name="modalEditUserPhone" class="form-control phone-number-mask" placeholder="202 555 0111" />
-            </div>
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="modalEditUserLanguage">Language</label>
-            <select id="modalEditUserLanguage" name="modalEditUserLanguage" class="select2 form-select" multiple>
-              <option value="">Select</option>
-              <option value="english" selected>English</option>
-              <option value="spanish">Spanish</option>
-              <option value="french">French</option>
-              <option value="german">German</option>
-              <option value="dutch">Dutch</option>
-              <option value="hebrew">Hebrew</option>
-              <option value="sanskrit">Sanskrit</option>
-              <option value="hindi">Hindi</option>
-            </select>
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label" for="modalEditUserCountry">Country</label>
-            <select id="modalEditUserCountry" name="modalEditUserCountry" class="select2 form-select" data-allow-clear="true">
-              <option value="">Select</option>
-              <option value="Australia">Australia</option>
-              <option value="Bangladesh">Bangladesh</option>
-              <option value="Belarus">Belarus</option>
-              <option value="Brazil">Brazil</option>
-              <option value="Canada">Canada</option>
-              <option value="China">China</option>
-              <option value="France">France</option>
-              <option value="Germany">Germany</option>
-              <option value="India">India</option>
-              <option value="Indonesia">Indonesia</option>
-              <option value="Israel">Israel</option>
-              <option value="Italy">Italy</option>
-              <option value="Japan">Japan</option>
-              <option value="Korea">Korea, Republic of</option>
-              <option value="Mexico">Mexico</option>
-              <option value="Philippines">Philippines</option>
-              <option value="Russia">Russian Federation</option>
-              <option value="South Africa">South Africa</option>
-              <option value="Thailand">Thailand</option>
-              <option value="Turkey">Turkey</option>
-              <option value="Ukraine">Ukraine</option>
-              <option value="United Arab Emirates">United Arab Emirates</option>
-              <option value="United Kingdom">United Kingdom</option>
-              <option value="United States">United States</option>
-            </select>
-          </div>
-          <div class="col-12">
-            <label class="switch">
-              <input type="checkbox" class="switch-input">
-              <span class="switch-toggle-slider">
-                <span class="switch-on"></span>
-                <span class="switch-off"></span>
-              </span>
-              <span class="switch-label">Use as a billing address?</span>
-            </label>
+            <label class="form-label" for="profileEmail">Email</label>
+            <input type="email" id="profileEmail" name="email" class="form-control" value="{{ old('email', $admin->email) }}" required>
           </div>
           <div class="col-12 text-center mt-4">
-            <button type="submit" class="btn btn-primary me-sm-3 me-1">Submit</button>
-            <button type="reset" class="btn btn-label-secondary" data-bs-dismiss="modal" aria-label="Close">
+            <button type="submit" class="btn btn-primary me-sm-3 me-1">Update Profile</button>
+            <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal" aria-label="Close">
               Cancel
             </button>
           </div>
@@ -303,13 +223,15 @@
 <div class="modal fade" id="changePassword" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content p-3 p-md-5">
-      <div class="modal-body
+      <div class="modal-body">
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         <div class="text-center mb-4">
           <h3 class="mb-2">Change Password</h3>
           <p class="text-muted">Your new password must be different from previously used passwords</p>
         </div>
-        <form id="changePasswordForm" onsubmit="return false">
+        <form action="{{ route('admin.account.password.update') }}" method="POST">
+          @csrf
+          @method('PUT')
           <div class="mb-3 form-password-toggle">
             <label class="form-label" for="currentPassword">Current Password</label>
             <div class="input-group input-group-merge">
@@ -317,9 +239,10 @@
                 type="password"
                 id="currentPassword"
                 class="form-control"
-                name="currentPassword"
+                name="current_password"
                 placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
                 aria-describedby="currentPassword"
+                required
               />
               <span class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
             </div>
@@ -331,9 +254,10 @@
                 type="password"
                 id="newPassword"
                 class="form-control"
-                name="newPassword"
+                name="password"
                 placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
                 aria-describedby="newPassword"
+                required
               />
               <span class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
             </div>
@@ -345,9 +269,10 @@
                 type="password"
                 id="confirmPassword"
                 class="form-control"
-                name="confirmPassword"
+                name="password_confirmation"
                 placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
                 aria-describedby="confirmPassword"
+                required
               />
               <span class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
             </div>
@@ -362,7 +287,7 @@
           </div>
           <div class="col-12 text-center">
             <button type="submit" class="btn btn-primary me-sm-3 me-1">Update Password</button>
-            <button type="reset" class="btn btn-label-secondary" data-bs-dismiss="modal" aria-label="Close">
+            <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal" aria-label="Close">
               Cancel
             </button>
           </div>

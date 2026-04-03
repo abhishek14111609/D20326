@@ -44,6 +44,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::prefix('users')->name('users.')->group(function () {
             Route::get('/', [AdminController::class, 'users'])->name('index');
             Route::get('/create', [AdminController::class, 'createUser'])->name('create');
+            Route::post('/', [AdminController::class, 'storeUser'])->name('store');
             Route::get('/{user}', [AdminController::class, 'showUser'])->name('show');
             Route::get('/{user}/edit', [AdminController::class, 'editUser'])->name('edit');
             Route::put('/{user}', [AdminController::class, 'updateUser'])->name('update');
@@ -109,7 +110,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('/{challenge}/edit', [\App\Http\Controllers\Admin\ChallengeController::class, 'edit'])->name('edit');
             Route::put('/{challenge}', [\App\Http\Controllers\Admin\ChallengeController::class, 'update'])->name('update');
             Route::delete('/{challenge}', [\App\Http\Controllers\Admin\ChallengeController::class, 'destroy'])->name('destroy');
-			Route::post('/{challenge}/cancel', [\App\Http\Controllers\Admin\ChallengeController::class, 'cancel'])->name('cancel');
+			Route::patch('/{challenge}/cancel', [\App\Http\Controllers\Admin\ChallengeController::class, 'cancel'])->name('cancel');
         });
         
         // Competitions Routes

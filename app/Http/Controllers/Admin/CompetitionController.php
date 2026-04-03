@@ -288,24 +288,23 @@ class CompetitionController extends Controller
     {
         // Load the competition with necessary relationships
         $competition->load(['participants' => function($query) {
-            $query->select('users.id', 'users.name', 'users.avatar')
-                ->withPivot(['status', 'type'])
+            $query->with(['user:id,name,avatar'])
                 ->latest('competition_participants.created_at')
                 ->limit(3);
         }]);
         
         // Ensure prizes is always an array
         if (empty($competition->prizes) || $competition->prizes === 'null') {
-            $competition->prizes = json_encode([
+            $competition->prizes = [
                 ['name' => '1st Place', 'value' => null, 'description' => null],
                 ['name' => '2nd Place', 'value' => null, 'description' => null],
                 ['name' => '3rd Place', 'value' => null, 'description' => null],
-            ]);
+            ];
         }
         
         // Ensure tags is always an array
         if (empty($competition->tags) || $competition->tags === 'null') {
-            $competition->tags = json_encode([]);
+            $competition->tags = [];
         }
         
         return view('admin.competitions.edit', compact('competition'));

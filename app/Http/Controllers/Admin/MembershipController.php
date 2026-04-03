@@ -105,7 +105,7 @@ class MembershipController extends Controller
             'level' => 'required|integer|min:1',
             'is_active' => 'boolean',
             'features' => 'nullable|array',
-            'features.*' => 'string|max:255',
+            'features.*' => 'nullable|string|max:255',
             'stripe_plan_id' => 'nullable|string|max:255',
             'paypal_plan_id' => 'nullable|string|max:255',
             'razorpay_plan_id' => 'nullable|string|max:255',
@@ -113,7 +113,9 @@ class MembershipController extends Controller
 
         // Clean up features array (remove empty values)
         if (isset($validated['features'])) {
-            $validated['features'] = array_values(array_filter($validated['features']));
+            $validated['features'] = array_values(array_filter($validated['features'], function ($feature) {
+                return is_string($feature) && trim($feature) !== '';
+            }));
         }
 
         // Generate a slug if not provided
@@ -164,7 +166,7 @@ class MembershipController extends Controller
             'level' => 'required|integer|min:1',
             'is_active' => 'boolean',
             'features' => 'nullable|array',
-            'features.*' => 'string|max:255',
+            'features.*' => 'nullable|string|max:255',
             'stripe_plan_id' => 'nullable|string|max:255',
             'paypal_plan_id' => 'nullable|string|max:255',
             'razorpay_plan_id' => 'nullable|string|max:255',
@@ -172,7 +174,9 @@ class MembershipController extends Controller
 
         // Clean up features array (remove empty values)
         if (isset($validated['features'])) {
-            $validated['features'] = array_values(array_filter($validated['features']));
+            $validated['features'] = array_values(array_filter($validated['features'], function ($feature) {
+                return is_string($feature) && trim($feature) !== '';
+            }));
         } else {
             $validated['features'] = [];
         }

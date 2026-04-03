@@ -225,6 +225,8 @@
 @push('scripts')
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <script>
 // User Growth Chart
@@ -332,9 +334,58 @@ document.getElementById('printReport').addEventListener('click', function() {
 });
 
 // Export PDF functionality
-document.getElementById('exportPdf').addEventListener('click', function() {
-    // This would be replaced with actual PDF generation logic
-    alert('Export to PDF functionality would be implemented here');
+document.getElementById('exportPdf').addEventListener('click', async function() {
+    const exportButton = this;
+    const reportContainer = document.querySelector('.container-xxl');
+
+    if (!reportContainer || !window.jspdf || !window.html2canvas) {
+        alert('Unable to export report right now. Please try again.');
+        return;
+    }
+
+    try {
+        exportButton.disabled = true;
+        exportButton.innerHTML = "<i class='bx bx-loader-alt bx-spin me-1'></i> Exporting...";
+
+        const canvas = await html2canvas(reportContainer, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            windowWidth: document.documentElement.scrollWidth
+        });
+
+        const imageData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'pt', 'a4');
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 20;
+        const contentWidth = pageWidth - margin * 2;
+        const imageHeight = (canvas.height * contentWidth) / canvas.width;
+
+        let heightLeft = imageHeight;
+        let position = margin;
+
+        pdf.addImage(imageData, 'PNG', margin, position, contentWidth, imageHeight);
+        heightLeft -= (pageHeight - margin * 2);
+
+        while (heightLeft > 0) {
+            pdf.addPage();
+            position = margin - (imageHeight - heightLeft);
+            pdf.addImage(imageData, 'PNG', margin, position, contentWidth, imageHeight);
+            heightLeft -= (pageHeight - margin * 2);
+        }
+
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        pdf.save(`user-reports-${dateStamp}.pdf`);
+    } catch (error) {
+        console.error('PDF export failed:', error);
+        alert('PDF export failed. Please try again.');
+    } finally {
+        exportButton.disabled = false;
+        exportButton.innerHTML = "<i class='bx bx-export me-1'></i> Export PDF";
+    }
 });
 </script>
 @endpush

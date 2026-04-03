@@ -17,6 +17,7 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AdminController extends Controller implements HasMedia
 {
@@ -445,6 +446,50 @@ class AdminController extends Controller implements HasMedia
     }
 
     /**
+     * Store a newly created user.
+     */
+    public function storeUser(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'phone' => 'nullable|string|max:20',
+            'role' => 'required|in:user,admin',
+        ]);
+
+        $user = new User();
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->password = Hash::make($validated['password']);
+
+        if (Schema::hasColumn('users', 'status')) {
+            $user->status = 'active';
+        }
+
+        if (Schema::hasColumn('users', 'phone') && !empty($validated['phone'])) {
+            $user->phone = $validated['phone'];
+        }
+
+        $user->save();
+
+        if (method_exists($user, 'assignRole')) {
+            try {
+                $user->assignRole($validated['role']);
+            } catch (\Throwable $e) {
+                \Log::warning('Role assignment failed for new user', [
+                    'user_id' => $user->id,
+                    'role' => $validated['role'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return redirect()->route('admin.users.index')
+            ->with('success', 'User created successfully.');
+    }
+
+    /**
      * Show the form for editing the specified user.
      *
      * @param  \App\Models\User  $user
@@ -635,7 +680,7 @@ class AdminController extends Controller implements HasMedia
             'services.push_notifications.enabled' => $request->has('enable_push_notifications'),
         ]);
         
-        return redirect()->route('admin.settings')
+        return redirect()->route('admin.settings.index')
             ->with('success', 'Settings updated successfully');
     }
 

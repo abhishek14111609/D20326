@@ -194,8 +194,8 @@
           </a>
         </li>
 		  
-		<li class="menu-item {{ request()->routeIs('admin.users.create') ? 'active' : '' }}">
-		 <a href="{{ route('admin.users.create') }}" class="menu-link">
+    <li class="menu-item {{ request()->routeIs('admin.register') ? 'active' : '' }}">
+     <a href="{{ route('admin.register') }}" class="menu-link">
 			 <div data-i18n="Add New">Add Admin</div>
 		 </a>
 	  </li>
